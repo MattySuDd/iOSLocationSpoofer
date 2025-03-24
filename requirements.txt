@@ -1,0 +1,4 @@
+polyline==2.0.2
+python-dotenv==1.0.1
+pywebview==5.4
+Requests==2.32.3

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map with Start and End Coordinates</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #161616;
+            color: #fff;
+        }
+
+        p {
+            margin: 0;
+        }
+
+        h1 {
+            margin: 0;
+            padding: 0;
+            font-size: 2em;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #map {
+            height: 90%;
+            width: 100%;
+        }
+
+        .top-box {
+            width: 96%;
+            height: 110px;
+            z-index: 1000;
+            margin: 28px;
+        }
+
+        .row {
+            display: flex;
+            flex-direction: row;
+        }
+
+        /* remove button should be inside the input bar */
+        .removebutton {
+            display: flex;
+            color: #ffffff2a;
+            text-align: center;
+            align-items: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.1s;
+            margin-right: 32px;
+            margin-left: 8px;
+        }
+
+        .removebutton:hover {
+            color: #ffffffa6;
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #cccccc3a;
+            border-radius: 4px;
+            background-color: #222;
+            color: #fff;
+        }
+
+        button {
+            padding: 8px;
+            border: 1px solid #cccccc3a;
+            border-radius: 4px;
+            background-color: #287eff;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+
+        .button-secondary {
+            background-color: #242424;
+        }
+
+        .button-secondary:hover {
+            background-color: #333333;
+        }
+
+        button:hover {
+            background-color: #1e5fd1;
+        }
+
+        .car-icon {
+            color: #ffeb3b;
+            font-size: 30px;
+        }
+
+        .bottom-right {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            margin: 16px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="top-box" style="padding-top: 8px;">
+            <h1>IOS Spoofing<span style="opacity: 0.3; font-size: 0.5em; font-weight: normal; margin-left: 16px;">iOS&lt;17</span></h1>
+            <p style="opacity: 0.5;">Click on the map to set the start and end points.</p>
+            <div class="row" style="margin-top: 28px; display: none;" id="journey-inputs">
+                <input type="text" id="start" placeholder="Start Point" style="width: 45%;" readonly>
+                <p class="removebutton" onclick="removeStart()">Remove</p>
+                <input type="text" id="end" placeholder="End Point" style="width: 45%;" readonly>
+                <p class="removebutton" onclick="removeEnd()">Remove</p>
+            </div>
+            <div class="row" style="margin-top: 28px;" id="location-inputs">
+                <input type="text" id="start" placeholder="Location" style="width: 45%;" readonly>
+                <p class="removebutton" onclick="removeStart()">Remove</p>
+            </div>
+
+            <div class="row" style="margin-top: 40px; gap: 10px; justify-content: end;">
+                <div id="journey-buttons" style="display: none; gap:8px;">
+                    <button onclick="startSpoofing()">Start Journey</button>
+                    <button onclick="stopSpoofing()">Stop Journey</button>
+                </div>
+                <div id="location-buttons" style="display: flex; gap:8px;">
+                    <button onclick="startSpoofing()">Start Location</button>
+                </div>
+                <button onclick="clearMarkers()">Clear Markers</button>
+            </div>
+
+        </div>
+        <div class="bottom-right">
+            <button onclick="changeToLocation()" class="button-secondary" id="location" style="display: none;">Swith to
+                location</button>
+            <button onclick="changeToJourney()" class="button-secondary" id="journey">Swith to Journey</button>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([53.479466, -2.245575], 25); // Default to a location
+
+        // Add the CartoDB Dark Matter tile layer for dark mode
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attributions">CartoDB</a>'
+        }).addTo(map);
+
+        // Variables to store the start and end markers
+        var startMarker, endMarker;
+        var carMarker; // This will represent the car
+        var locationMarker; // This will represent the location
+        var journeyStarted = false;
+        let startCoords
+        let endCoords
+
+        let location_mode = true
+        let journey_mode = false
+
+        function changeToLocation() {
+            location_mode = true
+            journey_mode = false
+            document.getElementById("location").style.display = "none"
+            document.getElementById("journey").style.display = "block"
+            document.getElementById("journey-inputs").style.display = "none"
+            document.getElementById("location-inputs").style.display = "flex"
+            document.getElementById("journey-buttons").style.display = "none"
+            document.getElementById("location-buttons").style.display = "flex"
+            clearMarkers()
+        }
+
+        function changeToJourney() {
+            location_mode = false
+            journey_mode = true
+            document.getElementById("location").style.display = "block"
+            document.getElementById("journey").style.display = "none"
+            document.getElementById("journey-inputs").style.display = "flex"
+            document.getElementById("location-inputs").style.display = "none"
+            document.getElementById("journey-buttons").style.display = "flex"
+            document.getElementById("location-buttons").style.display = "none"
+            clearMarkers()
+        }
+
+
+        // Function to handle clicks on the map
+        map.on('click', function (e) {
+            // Check if startMarker is set
+            if (journey_mode) {
+                if (!startMarker) {
+                    // Set the start marker
+                    startMarker = L.marker(e.latlng).addTo(map).bindPopup("Start Point").openPopup();
+                    // Update the input field for the start point
+                    document.getElementById("start").value = `Latitude: ${e.latlng.lat}, Longitude: ${e.latlng.lng}`;
+                    startCoords = [e.latlng.lat, e.latlng.lng]
+                } else if (!endMarker) {
+                    // Set the end marker
+                    endMarker = L.marker(e.latlng).addTo(map).bindPopup("End Point").openPopup();
+                    // Update the input field for the end point
+                    document.getElementById("end").value = `Latitude: ${e.latlng.lat}, Longitude: ${e.latlng.lng}`;
+                    endCoords = [e.latlng.lat, e.latlng.lng]
+                } else {
+                    // Reset if both markers are already set
+                    startMarker.remove();
+                    endMarker.remove();
+                    startMarker = null;
+                    endMarker = null;
+                    document.getElementById("start").value = "";
+                    document.getElementById("end").value = "";
+                }
+            } else if (location_mode) {
+                if (!startMarker) {
+                    // Set the start marker
+                    startMarker = L.marker(e.latlng).addTo(map).bindPopup("Location").openPopup();
+                    // Update the input field for the start point
+                    document.getElementById("start").value = `Latitude: ${e.latlng.lat}, Longitude: ${e.latlng.lng}`;
+                    startCoords = [e.latlng.lat, e.latlng.lng]
+                } else {
+                    // Reset if both markers are already set
+                    startMarker.remove();
+                    startMarker = null;
+                    document.getElementById("start").value = "";
+                }
+            }
+        });
+
+        // Remove the start point marker and reset input
+        function removeStart() {
+            if (startMarker) {
+                startMarker.remove();
+                startMarker = null;
+                document.getElementById("start").value = "";
+            }
+        }
+
+        // Remove the end point marker and reset input
+        function removeEnd() {
+            if (endMarker) {
+                endMarker.remove();
+                endMarker = null;
+                document.getElementById("end").value = "";
+            }
+        }
+
+        // Start the journey (move the car)
+        async function startSpoofing() {
+            if (journey_mode) {
+                if (startMarker && endMarker) {
+                let coordinates
+                response = await window.pywebview.api.get_speeds(startCoords, endCoords)
+
+                if (response == "No device found") return alert("No Device found")
+                coordinates = response
+
+
+                if (!journeyStarted) {
+                    journeyStarted = true;
+
+                    // Add a car marker at the start position
+                    carMarker = L.marker(startCoords, { icon: L.divIcon({ className: 'car-icon', html: '🚗', iconSize: [30, 30] }) }).addTo(map);
+
+                    for (const node of coordinates) {
+                        if (!journeyStarted) {
+                            break;
+                        }
+                        carMarker.setLatLng(node[0]);
+                        const delay = ((1 / (node[1] / 60)) * 1000) + 1800
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+
+                    journeyStarted = false;
+                    // remove the car marker
+                    if (carMarker) {
+                        carMarker.remove();
+                        carMarker = null;
+                    }
+                }
+            } else {
+                alert("Please set both start and end points.");
+            }
+            } else if (location_mode) {
+                if (startCoords) {
+                    if (locationMarker) {
+                        locationMarker.remove();
+                        locationMarker = null;
+                    }
+                    response = await window.pywebview.api.set_location(startCoords)
+                    if (response == "No device found") return alert("No Device found")
+                    locationMarker = L.marker([startCoords[0]+0.0001, startCoords[1]+0.0001], { icon: L.divIcon({ className: 'car-icon', html: '📌', iconSize: [30, 30] }) }).addTo(map);
+                }
+            }
+        }
+
+        // Stop the journey
+        async function stopSpoofing() {
+            if (journey_mode) {
+                journeyStarted = false;
+                window.pywebview.api.stop_simulation()
+                if (carMarker) {
+                    carMarker.remove();
+                    carMarker = null;
+                }
+            }
+            journeyStarted = false;
+        }
+
+        // Clear all markers
+        function clearMarkers() {
+            if (startMarker) {
+                startMarker.remove();
+                startMarker = null;
+            }
+            if (endMarker) {
+                endMarker.remove();
+                endMarker = null;
+            }
+            if (carMarker) {
+                carMarker.remove();
+                carMarker = null;
+            }
+            if (locationMarker) {
+                locationMarker.remove();
+                locationMarker = null;
+            }
+            document.getElementById("start").value = "";
+            document.getElementById("end").value = "";
+            journeyStarted = false;
+        }
+    </script>
+
+</body>
+
+</html>
