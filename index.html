@@ -126,7 +126,7 @@
                 <p class="removebutton" onclick="removeEnd()">Remove</p>
             </div>
             <div class="row" style="margin-top: 28px;" id="location-inputs">
-                <input type="text" id="start" placeholder="Location" style="width: 45%;" readonly>
+                <input type="text" id="start-location" placeholder="Location" style="width: 45%;" readonly>
                 <p class="removebutton" onclick="removeStart()">Remove</p>
             </div>
 
@@ -226,7 +226,7 @@
                     // Set the start marker
                     startMarker = L.marker(e.latlng).addTo(map).bindPopup("Location").openPopup();
                     // Update the input field for the start point
-                    document.getElementById("start").value = `Latitude: ${e.latlng.lat}, Longitude: ${e.latlng.lng}`;
+                    document.getElementById("start-location").value = `Latitude: ${e.latlng.lat}, Longitude: ${e.latlng.lng}`;
                     startCoords = [e.latlng.lat, e.latlng.lng]
                 } else {
                     // Reset if both markers are already set
