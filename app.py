@@ -17,21 +17,17 @@ API_KEY = os.getenv("API_KEY")
 
 class API:
     def checkConnection(self):
-        print("Checking connection")
         response = subprocess.run(["powershell", "pymobiledevice3 usbmux list"], capture_output=True, text=True)
         data = json.loads(response.stdout)
-        print(data)
         if len(data) == 0:
-            print("No device found")
             return False
         else:
             # check if all devices in the array have connectionType = USB
             count = 0
             for device in data:
-                print(device)
-                print(device["ConnectionType"])
                 if device["ConnectionType"] != "USB":
-                    print("No device found")
+                    # skip to next device
+                    continue
                 count += 1
             if count == 0:
                 return False
@@ -65,7 +61,6 @@ class API:
         if response.status_code != 200:
             return print(f"Error: {response.status_code}")
 
-        print("Route retrieved")
         data = response.json()
         
         # Extract the encoded polyline
@@ -81,7 +76,6 @@ class API:
                 # Extract the distance and duration for each step
                 distance = step["distance"]
                 duration = step["duration"]
-                print(f"Distance: {distance} m, Duration: {duration} s")
                 if duration == 0:
                     continue
 
@@ -97,10 +91,6 @@ class API:
                     for j in range(start_idx, end_idx + 1):
                         coord = coordinates[j]
                         speeds_per_coordinate.append((coord, avg_speed_kmh))
-        
-        # Debug: print the calculated speeds for coordinates
-        for coord, speed in speeds_per_coordinate:
-            print(f"Coordinate: {coord}, Average Speed: {speed} km/h")
 
         # Start a new thread to simulate the journey
         threading.Thread(target=self.simulateJourney, args=(speeds_per_coordinate,)).start()
@@ -122,7 +112,6 @@ class API:
         # start timer
         start_time = time.time()
         for coord, speed in speeds_per_coordinate:
-            print (f"stop_simulation: {stop_sim_boolean}")
             if stop_sim_boolean:
                 stop_sim_boolean = False
                 break
@@ -130,13 +119,10 @@ class API:
             start_process_time = time.time()
             subprocess.run(["powershell", f"pymobiledevice3 developer simulate-location set -- {coord[0]} {coord[1]}"])
             end_process_time = time.time()
-            print(f"Process took {end_process_time - start_process_time} seconds")
             
             # Wait depending on the speed (simulate movement time)
-            print (f"delaying for {1 / (speed / 60)} seconds")
             time.sleep(1 / (speed / 60))  # Speed in km/h, sleep time adjusted
         end_time = time.time()
-        print(f"Simulation took {end_time - start_time} seconds")
         
     def set_location(self, coord):
         if not self.checkConnection():
