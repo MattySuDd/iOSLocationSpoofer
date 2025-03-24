@@ -1,1 +1,6 @@
 .env
+
+# Ignore PyInstaller build artifacts
+app.spec
+dist/
+build/
